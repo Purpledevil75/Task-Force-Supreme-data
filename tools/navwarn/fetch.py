@@ -10,7 +10,7 @@ import hashlib, html, json, os, re, subprocess, sys, time, traceback, urllib.par
 H = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(H, '..', '..')
 OUTD = os.path.join(ROOT, 'navwarn'); os.makedirs(OUTD, exist_ok=True)
-UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TaskForceSupreme-data/0.1 (+https://github.com/Purpledevil75/Task-Force-Supreme-data)'
+UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36'
 NOW = time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime())
 TODAY = time.strftime('%Y-%m-%d', time.gmtime())
 DEBUG = os.environ.get('NW_DEBUG')
@@ -36,7 +36,7 @@ def text_of(h):
     h = re.sub(r'</(p|div|tr|li|h\d|pre|section)>', '\n', h, flags=re.I)
     h = re.sub(r'<[^>]+>', '', h)
     t = html.unescape(h).replace('\r', '').replace('\xa0', ' ')
-    return '\n'.join(l.rstrip() for l in t.split('\n'))
+    return '\n'.join(l.strip() for l in t.split('\n'))
 
 def clean(t):
     t = html.unescape(t).replace('\r', '').replace('\xa0', ' ')

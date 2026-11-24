@@ -58,7 +58,7 @@ jobs:
             mkdir -p /tmp/keep && cp tss/tss.json tss/changes.json /tmp/keep/
             for a in 1 2 3; do
               git fetch -q origin main && git reset -q --hard origin/main
-              for f in tss/tss.json tss/changes.json; do cp /tmp/keep/$(basename $f) $f; done
+              mkdir -p tss; for f in tss/tss.json tss/changes.json; do cp /tmp/keep/$(basename $f) $f; done
               python tools/manifest.py tss
               git add tss/tss.json tss/changes.json manifest.json
               git commit -qm "TSS data update $(date -u +'%F %H:%M')" || break

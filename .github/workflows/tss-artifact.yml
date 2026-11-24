@@ -19,7 +19,7 @@ jobs:
           git config user.name tss-bot; git config user.email ci@users.noreply.github.com
           for a in 1 2 3; do
             git fetch -q origin main && git reset -q --hard origin/main
-            cp /tmp/keep/tss.json /tmp/keep/changes.json tss/
+            mkdir -p tss && cp /tmp/keep/tss.json /tmp/keep/changes.json tss/
             python3 tools/manifest.py tss
             git add tss/tss.json tss/changes.json manifest.json
             git commit -qm "TSS data update $(date -u +'%F %H:%M') (planet extract)" || break

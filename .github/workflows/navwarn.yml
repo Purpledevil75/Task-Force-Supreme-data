@@ -24,6 +24,13 @@ jobs:
         run: |
           if python -c "import json,sys; sys.exit(0 if json.load(open('tools/navwarn/out/summary.json'))['changed'] else 1)"; then
             git config user.name navwarn-bot; git config user.email ci@users.noreply.github.com
-            git add navwarn/navwarn.json manifest.json
-            git commit -qm "Navigational warnings $(date -u +'%F %H:%M')" && (git pull --rebase -q && git push || (sleep 20; git pull --rebase -q && git push))
+            mkdir -p /tmp/keep && cp navwarn/navwarn.json /tmp/keep/
+            for a in 1 2 3; do
+              git fetch -q origin main && git reset -q --hard origin/main
+              for f in navwarn/navwarn.json; do cp /tmp/keep/$(basename $f) $f; done
+              python tools/manifest.py navwarn
+              git add navwarn/navwarn.json manifest.json
+              git commit -qm "Navigational warnings $(date -u +'%F %H:%M')" || break
+              git push -q && break || sleep 15
+            done
           else echo "no changes"; fi

@@ -1,0 +1,27 @@
+name: Commit TSS result from an earlier run
+on:
+  workflow_dispatch:
+    inputs:
+      run_id: { description: 'run id of "Update TSS data" with artifact tss-out', required: true }
+permissions:
+  contents: write
+  actions: read
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: tss-out, run-id: "${{ inputs.run_id }}", github-token: "${{ secrets.GITHUB_TOKEN }}", path: /tmp/art }
+      - run: |
+          find /tmp/art -maxdepth 3 | head -20
+          mkdir -p /tmp/keep && cp /tmp/art/tss/tss.json /tmp/art/tss/changes.json /tmp/keep/
+          git config user.name tss-bot; git config user.email ci@users.noreply.github.com
+          for a in 1 2 3; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp /tmp/keep/tss.json /tmp/keep/changes.json tss/
+            python3 tools/manifest.py tss
+            git add tss/tss.json tss/changes.json manifest.json
+            git commit -qm "TSS data update $(date -u +'%F %H:%M') (planet extract)" || break
+            git push -q && break || sleep 15
+          done

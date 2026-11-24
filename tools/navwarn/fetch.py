@@ -302,6 +302,8 @@ def nha():
         ref = ' '.join(text_of(m.group(1)).split())
         if not re.match(r'NAVAREA\s+II\s+\d+\s*/\s*\d+', ref): continue
         lines = [l for l in text_of(m.group(2)).split('\n')]
+        for k, l in enumerate(lines):   # page footer after the last card
+            if l.upper() in ('ADDRESS', 'EMAIL', 'SCROLL TO TOP') or l.startswith('Copyright'): lines = lines[:k]; break
         while lines and not lines[0]: lines.pop(0)
         if lines and ' '.join(lines[0].split()) == ref: lines.pop(0)
         dtg = ''

@@ -15,6 +15,17 @@
    "changes": "tss/changes.json",
    "sha256": "710318e914b7b93ffb5407cb1d0fe881c109355ff7a8f3d51f2c52a1f4dfcbb7",
    "license": "ODbL-1.0"
+  },
+  "tz": {
+   "updated": "2026-11-24",
+   "version": "2026f",
+   "count": 597,
+   "path": "tz/tz.json",
+   "changes": "tz/changes.json",
+   "corrections": "tz/corrections.json",
+   "corrections_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+   "sha256": "6eb1af4247c2a3d3d52743bc282139b44ada6a2c7ec32e128145f50b4f3e2091",
+   "license": "public domain (IANA tz database)"
   }
  }
 }

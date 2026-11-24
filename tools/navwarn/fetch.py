@@ -256,9 +256,46 @@ def dhn():
     if not out: raise RuntimeError('no warnings parsed')
     return out
 
+def ihm():
+    """NAVAREA III - Instituto Hidrografico de la Marina (Spain): XML of warnings in force (English)."""
+    x = get('https://armada.defensa.gob.es/ihm/XML/Index_navareas_eng.xml', timeout=90)
+    out = []
+    for m in re.finditer(r"<navarea\s+id_nav='(\d+)'\s+fecha_emi='(\d{4})-(\d\d)-(\d\d)'\s+asunto='([^']*)'\s+loca='([^']*)'\s*>\s*<!\[CDATA\[(.*?)\]\]>", x, re.S):
+        num, yy, mo, dd, subj, loca, body = m.groups()
+        dtg = f'{dd}0000 UTC ' + time.strftime('%b', time.strptime(mo, '%m')).upper() + ' ' + yy[2:]
+        text = clean(text_of(body))
+        hdr = ' '.join(x for x in (html.unescape(loca).strip(), html.unescape(subj).strip()) if x)
+        out.append(msg('III', 'navarea', f'NAVAREA III {int(num)}/{yy[2:]}', (hdr + '\n' if hdr else '') + text, 'IHM Spain', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out
+
+PK_CACHE = {}
+def pnho():
+    """NAVAREA IX - National Hydrographic Office Pakistan: in-force table, full texts from linked .txt files
+    (texts are cached by file name between runs)."""
+    base = 'https://hydrography.paknavy.gov.pk'
+    h = get(base + '/navarea-ix-warnings/', timeout=90)
+    rows = re.findall(r'<tr>\s*<td>\s*\d+\s*</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>.*?href="([^"]+\.txt)"', h, re.S)
+    out = []; fetched = 0
+    for area, dtg, num, title, href in rows:
+        area, dtg, num, title = (html.unescape(re.sub(r'<[^>]+>', '', v)).strip() for v in (area, dtg, num, title))
+        url = urllib.parse.urljoin(base, href.replace(' ', '%20'))
+        t = PK_CACHE.get(url)
+        if t is None:
+            try: t = get(url, timeout=40); fetched += 1; time.sleep(0.2)
+            except Exception as ex: t = area + '\n' + title; print('  pk', num, ex, flush=True)
+        t = clean(t.replace('\r', ''))
+        lines = t.split('\n')
+        if lines and re.match(r'\d{6}\s*UTC', lines[0]): lines = lines[1:]
+        if lines and re.match(r'NAVAREA\s+IX', lines[0]): lines = lines[1:]
+        m = msg('IX', 'navarea', 'NAVAREA IX ' + num, '\n'.join(lines), 'PN Hydrography', dtg); m['u'] = url
+        out.append(m)
+    if not out: raise RuntimeError('no warnings parsed')
+    return out, f'{len(out)} in list, {fetched} texts downloaded'
+
 SOURCES = [('UKHO', 'I + UK coastal', ukho), ('NGA', 'IV, XII, HYDROLANT/PAC/ARC', nga), ('AMSA', 'X + AUSCOAST', amsa),
            ('JCG', 'XI', jcg), ('Maritime NZ', 'XIV + NZ coastal', maritimenz), ('CCG', 'XVII, XVIII', ccg),
-           ('Kystverket', 'XIX', kystverket), ('SHN Argentina', 'VI', shn), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho)]
+           ('Kystverket', 'XIX', kystverket), ('IHM Spain', 'III', ihm), ('SHN Argentina', 'VI', shn), ('PN Hydrography', 'IX', pnho), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho)]
 
 def main():
     only = set(sys.argv[1:])
@@ -267,6 +304,8 @@ def main():
     prev_by_src = {}
     for m in prev.get('m', []): prev_by_src.setdefault(m['src'], []).append(m)
     seen = {m['id']: m.get('seen', TODAY) for m in prev.get('m', [])}
+    for m in prev.get('m', []):
+        if m.get('u'): PK_CACHE[m['u']] = m['t']
     allm, srcs = [], {}
     for name, covers, fn in SOURCES:
         if only and name not in only:

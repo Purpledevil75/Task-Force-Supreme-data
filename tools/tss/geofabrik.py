@@ -42,7 +42,22 @@ def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode: raise RuntimeError(' '.join(cmd[:2]) + ': ' + (r.stderr or r.stdout)[-300:])
 
+def planet(url):
+    """Whole planet in one go: download (fast mirror) -> one tags-filter pass -> export."""
+    pbf, sub, js = os.path.join(WORK, 'planet.osm.pbf'), os.path.join(WORK, 'f.osm.pbf'), os.path.join(OUT, 'geofabrik.geojsonseq')
+    t0 = time.time()
+    if not os.path.exists(pbf):
+        run(['aria2c', '-q', '-x', '16', '-s', '16', '-k', '64M', '--file-allocation=none', '-d', WORK, '-o', 'planet.osm.pbf', url])
+    print('downloaded', os.path.getsize(pbf) // 2**20, 'MB in', int(time.time() - t0), 's', flush=True)
+    run(['osmium', 'tags-filter', '--overwrite', '-o', sub, pbf, 'nwr/seamark:type=' + ','.join(TYPES)])
+    print('filtered in', int(time.time() - t0), 's', flush=True)
+    run(['osmium', 'export', '--overwrite', '-f', 'geojsonseq', '-x', 'print_record_separator=false', '-a', 'type,id,version,timestamp', '-o', js, sub])
+    n = sum(1 for _ in open(js, encoding='utf-8'))
+    json.dump({'done': ['planet'], 'failed': [], 'features': n, 'url': url}, open(os.path.join(OUT, 'geofabrik-status.json'), 'w'))
+    print('planet features', n, 'in', int(time.time() - t0), 's', flush=True)
+
 def main():
+    if os.environ.get('TSS_PLANET_URL'): return planet(os.environ['TSS_PLANET_URL'])
     regs = regions()
     if LIMIT: regs = regs[:LIMIT]
     print('regions:', len(regs), flush=True)

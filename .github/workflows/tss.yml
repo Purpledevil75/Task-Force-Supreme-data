@@ -28,12 +28,22 @@ jobs:
         if: ${{ (inputs.source || 'geofabrik') == 'geofabrik' }}
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo apt-get update -q && sudo apt-get install -y -q osmium-tool
+          sudo apt-get update -q && sudo apt-get install -y -q osmium-tool aria2
           df -h / | tail -1
-      - name: Extract from Geofabrik country files
+      - name: Extract from the OSM planet file (AWS Open Data mirror)
         if: ${{ (inputs.source || 'geofabrik') == 'geofabrik' }}
-        env: { TSS_LIMIT: "${{ inputs.limit || '0' }}" }
-        run: python tools/tss/geofabrik.py 2>&1 | tee tools/tss/out/geofabrik.log
+        env: { TSS_LIMIT: "${{ inputs.limit || '0' }}", TSS_WORK: /home/runner/tsswork }
+        run: |
+          mkdir -p $TSS_WORK; df -h $TSS_WORK | tail -1
+          URL=""
+          for B in osm-planet-eu-central-1 osm-planet-us-west-2; do
+            K=$(aws s3 ls --no-sign-request --recursive s3://$B/planet/pbf/ 2>/dev/null | awk '{print $4}' | grep -E 'planet-[0-9]+\.osm\.pbf$' | sort | tail -1)
+            echo "$B: $K"; if [ -n "$K" ]; then URL="https://$B.s3.amazonaws.com/$K"; break; fi
+          done
+          [ -n "$URL" ] || URL="https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf"
+          echo "planet: $URL"
+          if [ "${TSS_LIMIT}" = "0" ]; then export TSS_PLANET_URL="$URL"; fi
+          python tools/tss/geofabrik.py 2>&1 | tee tools/tss/out/geofabrik.log
       - name: Build data set and change log
         env: { TSS_SOURCE: "${{ inputs.source || 'geofabrik' }}" }
         run: python tools/tss/fetch.py 2>&1 | tee tools/tss/out/fetch.log || true

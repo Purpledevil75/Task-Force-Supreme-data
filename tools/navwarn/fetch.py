@@ -312,10 +312,62 @@ def nha():
     if not out: raise RuntimeError('no warnings parsed')
     return out
 
+MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+def _dm(v, pos, neg, w):
+    h = pos if v >= 0 else neg; v = abs(v); d = int(v); m = (v - d) * 60
+    if round(m, 2) >= 60: d += 1; m = 0
+    return f'{d:0{w}d}-{m:05.2f}{h}'
+def ping():
+    """NAVAREA II - Shom's PING platform, open REST API (S-124 XML), documented at portail.ping-info-nautique.fr/static/an-api-rest-v2.
+    Falls back to the Nigerian Hydrographic Agency's public copy of the list if PING is unavailable."""
+    import xml.etree.ElementTree as ET
+    try:
+        x = get('https://services.ping-info-nautique.fr/nw/v2/Get_NW_Messages?nameOfSeries=NAVAREA%20II&lang=en', binary=True)
+        root = ET.fromstring(x)
+    except Exception as ex:
+        r = nha(); return r, f'PING unavailable ({str(ex)[:80]}); NHA Nigeria copy used'
+    NS = {'S124': 'http://www.iho.int/S124/gml/2.0', 'S100': 'http://www.iho.int/s100gml/5.0', 'gml': 'http://www.opengis.net/gml/3.2'}
+    tx = lambda e, p: ' '.join((e.findtext(p, '', NS) or '').split())
+    out = []
+    for ds in root.iter('{%s}Dataset' % NS['S124']):
+        pre = ds.find('.//S124:NavwarnPreamble', NS)
+        if pre is None: continue
+        num, yr = tx(pre, './/S124:warningNumber'), tx(pre, './/S124:year')
+        if not num.isdigit() or not yr.isdigit(): continue
+        ref = f'NAVAREA II {int(num)}/{yr[-2:]}'
+        lines = [tx(pre, './/S124:generalArea/S124:locationName/S124:text'), tx(pre, 'S124:navwarnTypeGeneral').upper()]
+        coords = []; parts = ds.findall('.//S124:NavwarnPart', NS)
+        for k, part in enumerate(parts, 1):
+            det = tx(part, './/S124:navwarnTypeDetails').upper()
+            info = '\n'.join((e.text or '').strip() for e in part.findall('.//S124:information/S124:text', NS)).upper()
+            d0, d1 = tx(part, './/S124:dateStart/S100:date'), tx(part, './/S124:dateEnd/S100:date')
+            body = '\n'.join(x for x in [det, info] if x)
+            if d1 and d1 not in body: body += f'\nFROM {d0} TO {d1}' if d0 else f'\nUNTIL {d1}'
+            lines.append((f'{k}. ' if len(parts) > 1 else '') + body)
+            for g in part.iter():
+                if g.tag in ('{%s}pos' % NS['gml'], '{%s}posList' % NS['gml']) and g.text:
+                    v = [float(a) for a in g.text.split()]
+                    coords += [(v[i], v[i + 1]) for i in range(0, len(v) - 1, 2)]
+        for r in ds.iter('{%s}References' % NS['S124']):
+            cat = tx(r, 'S124:referenceCategory')
+            for w in r.findall('S124:theWarning', NS):
+                m = re.search(r'NAVAREA_II\.(\d+)\.(\d{4})', w.get('{http://www.w3.org/1999/xlink}href', ''))
+                if m and 'CANCEL' in cat.upper(): lines.append(f'CANCEL NAVAREA II {int(m.group(1))}/{m.group(2)[-2:]}')
+        t = '\n'.join(l for l in lines if l)
+        if coords and not re.search(r'\d{1,2}-\d{2}(?:\.\d+)?\s*[NS]', t):   # positions only in the GML geometry
+            t += '\n' + '\n'.join(f'{_dm(a, "N", "S", 2)} {_dm(b, "E", "W", 3)}' for a, b in coords)
+        dtg = ''
+        pt = tx(pre, 'S124:publicationTime')
+        mm = re.match(r'(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)', pt)
+        if mm: dtg = f'{mm.group(3)}{mm.group(4)}{mm.group(5)} UTC {MON[int(mm.group(2)) - 1]} {mm.group(1)[2:]}'
+        out.append(msg('II', 'navarea', ref, t, 'Shom PING', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out, 'S-124 API'
+
 SOURCES = [('UKHO', 'I + UK coastal', ukho), ('NGA', 'IV, XII, HYDROLANT/PAC/ARC', nga), ('AMSA', 'X + AUSCOAST', amsa),
            ('JCG', 'XI', jcg), ('Maritime NZ', 'XIV + NZ coastal', maritimenz), ('CCG', 'XVII, XVIII', ccg),
            ('Kystverket', 'XIX', kystverket), ('IHM Spain', 'III', ihm), ('SHN Argentina', 'VI', shn), ('PN Hydrography', 'IX', pnho), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho),
-           ('NHA Nigeria', 'II', nha)]
+           ('Shom PING', 'II', ping)]
 
 def main():
     only = set(sys.argv[1:])

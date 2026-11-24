@@ -298,7 +298,7 @@ def nha():
     h = get('https://nha.gov.ng/navarea-ii-warnings/')
     i = h.find('Warnings In-force'); h = h[i:] if i >= 0 else h
     out = []
-    for m in re.finditer(r'<h3 class="ea-header">(.*?)</h3>(.*?)(?=<div class="ea-card|<h4\b|\Z)', h, re.S):
+    for m in re.finditer(r'<h3 class="ea-header">(.*?)</h3>(.*?)(?=<div class="ea-card|<div class="elementor-element|<footer|<h4\b|\Z)', h, re.S):
         ref = ' '.join(text_of(m.group(1)).split())
         if not re.match(r'NAVAREA\s+II\s+\d+\s*/\s*\d+', ref): continue
         lines = [l for l in text_of(m.group(2)).split('\n')]

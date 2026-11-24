@@ -7,6 +7,14 @@
    "path": "navwarn/navwarn.json",
    "sha256": "4d2ae0d43bccbf46b6a320dd7a6ee5657300503464f63285620cf09c79c2953d",
    "license": "official public broadcasts"
+  },
+  "tss": {
+   "updated": "2026-11-24",
+   "count": 24942,
+   "path": "tss/tss.json",
+   "changes": "tss/changes.json",
+   "sha256": "710318e914b7b93ffb5407cb1d0fe881c109355ff7a8f3d51f2c52a1f4dfcbb7",
+   "license": "ODbL-1.0"
   }
  }
 }

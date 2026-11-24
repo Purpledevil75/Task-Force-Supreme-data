@@ -60,7 +60,7 @@ def msg(area, kind, ref, t, src, dtg=''):
     return {'id': mid, 'area': area, 'kind': kind, 'ref': ' '.join(ref.split()), 'num': num, 'yr': yr, 'dtg': ' '.join(dtg.split()), 't': clean(t), 'src': src}
 
 def is_bulletin(t):
-    return bool(re.search(r'(WARNINGS?\s+IN\s*FORCE|IN\s*FORCE\s+AS\s+OF|INFORCE\s+AT)', t[:200], re.I))
+    return bool(re.search(r'((?:WARNINGS?|MESSAGES?)\s+IN\s*FORCE|IN\s*FORCE\s+AS\s+OF|INFORCE\s+AT)', t[:200], re.I))
 
 # ------------------------------------------------------------------ sources
 def ukho():

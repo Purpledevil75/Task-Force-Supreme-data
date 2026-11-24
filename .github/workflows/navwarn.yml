@@ -1,0 +1,29 @@
+name: Update navigational warnings (NAVAREA)
+on:
+  schedule:
+    - cron: '17 */3 * * *'     # every 3 hours
+  workflow_dispatch:
+    inputs:
+      debug: { description: 'print source samples', default: '' }
+permissions:
+  contents: write
+concurrency: { group: navwarn, cancel-in-progress: false }
+jobs:
+  navwarn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get install -y -q poppler-utils >/dev/null || true
+      - name: Collect warnings
+        env: { NW_DEBUG: "${{ inputs.debug }}" }
+        run: python tools/navwarn/fetch.py 2>&1 | tee tools/navwarn/out.log
+      - name: Commit if changed
+        run: |
+          if python -c "import json,sys; sys.exit(0 if json.load(open('tools/navwarn/out/summary.json'))['changed'] else 1)"; then
+            git config user.name navwarn-bot; git config user.email ci@users.noreply.github.com
+            git add navwarn/navwarn.json manifest.json
+            git commit -qm "Navigational warnings $(date -u +'%F %H:%M')" && (git pull --rebase -q && git push || (sleep 20; git pull --rebase -q && git push))
+          else echo "no changes"; fi

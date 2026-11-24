@@ -189,11 +189,13 @@ def jcg():
             d = get(cgi + 'disp_warnings.cgi?' + urllib.parse.urlencode({'TYPE': 'NAVAREA11', 'TANA': tana, 'LANG': 'EG'}))
             body = clean(text_of(d))
             if DEBUG and not out: print('JCG detail sample:', body[:800], flush=True)
-            m = re.search(r'(NAVAREA\s+XI\s+\d+/\d+.*)', body, re.S)
-            body = m.group(1) if m else body
-            lines = body.split('\n')
-            ref = lines[0] if re.match(r'NAVAREA\s+XI\s+\d+/\d+', lines[0]) else f"NAVAREA XI {f.get('number', '')}"
-            out.append(msg('XI', 'navarea', ref, '\n'.join(lines[1:] if lines[0] == ref else lines), 'JCG'))
+            m = re.search(r'NO\.\s*(\d{2})-(\d+)\s+Date:\s*(\d{4})/(\d\d)/(\d\d)\s+(\d\d)\s*UTC\s*\n(.*)', body, re.S)
+            if m:
+                ref = f'NAVAREA XI {int(m.group(2))}/{m.group(1)}'
+                dtg = f'{m.group(5)}{m.group(6)}00 UTC ' + time.strftime('%b', time.strptime(m.group(4), '%m')).upper() + ' ' + m.group(3)[2:]
+                out.append(msg('XI', 'navarea', ref, m.group(7), 'JCG', dtg))
+            else:
+                out.append(msg('XI', 'navarea', f"NAVAREA XI {int(f.get('number', '0') or 0)}/{str(y)[2:]}", body, 'JCG'))
             time.sleep(0.3)
     if not out: raise RuntimeError('no warnings parsed')
     return out

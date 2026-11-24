@@ -2,10 +2,10 @@
  "schema": 1,
  "datasets": {
   "navwarn": {
-   "updated": "2026-11-24T10:58Z",
+   "updated": "2026-11-24T11:02Z",
    "count": 572,
    "path": "navwarn/navwarn.json",
-   "sha256": "bffc1226eecba5e9e0557898c136ef73b1f2bce603a110e27e7e7962c1251251",
+   "sha256": "4d2ae0d43bccbf46b6a320dd7a6ee5657300503464f63285620cf09c79c2953d",
    "license": "official public broadcasts"
   }
  }

@@ -60,7 +60,7 @@ def msg(area, kind, ref, t, src, dtg=''):
     return {'id': mid, 'area': area, 'kind': kind, 'ref': ' '.join(ref.split()), 'num': num, 'yr': yr, 'dtg': ' '.join(dtg.split()), 't': clean(t), 'src': src}
 
 def is_bulletin(t):
-    return bool(re.search(r'((?:WARNINGS?|MESSAGES?)\s+IN\s*FORCE|IN\s*FORCE\s+AS\s+OF|INFORCE\s+AT)', t[:200], re.I))
+    return bool(re.search(r'((?:WARNINGS?|MESSAGES?)\s+IN\s*FORCE|IN\s*FORCE\s+(?:AS\s+OF|AT)|INFORCE\s+AT|IN-FORCE\s+BULLETIN)', t[:200], re.I))
 
 # ------------------------------------------------------------------ sources
 def ukho():
@@ -317,6 +317,9 @@ def _dm(v, pos, neg, w):
     h = pos if v >= 0 else neg; v = abs(v); d = int(v); m = (v - d) * 60
     if round(m, 2) >= 60: d += 1; m = 0
     return f'{d:0{w}d}-{m:05.2f}{h}'
+def _d(iso):
+    m = re.match(r'(\d{4})-(\d\d)-(\d\d)', iso or '')
+    return f'{m.group(3)} {MON[int(m.group(2)) - 1]} {m.group(1)[2:]}' if m else iso
 def ping():
     """NAVAREA II - Shom's PING platform, open REST API (S-124 XML), documented at portail.ping-info-nautique.fr/static/an-api-rest-v2.
     Falls back to the Nigerian Hydrographic Agency's public copy of the list if PING is unavailable."""
@@ -342,7 +345,7 @@ def ping():
             info = '\n'.join((e.text or '').strip() for e in part.findall('.//S124:information/S124:text', NS)).upper()
             d0, d1 = tx(part, './/S124:dateStart/S100:date'), tx(part, './/S124:dateEnd/S100:date')
             body = '\n'.join(x for x in [det, info] if x)
-            if d1 and d1 not in body: body += f'\nFROM {d0} TO {d1}' if d0 else f'\nUNTIL {d1}'
+            if d1: body += f'\nFROM {_d(d0)} TO {_d(d1)}' if d0 else f'\nUNTIL {_d(d1)}'
             lines.append((f'{k}. ' if len(parts) > 1 else '') + body)
             for g in part.iter():
                 if g.tag in ('{%s}pos' % NS['gml'], '{%s}posList' % NS['gml']) and g.text:
@@ -352,7 +355,7 @@ def ping():
             cat = tx(r, 'S124:referenceCategory')
             for w in r.findall('S124:theWarning', NS):
                 m = re.search(r'NAVAREA_II\.(\d+)\.(\d{4})', w.get('{http://www.w3.org/1999/xlink}href', ''))
-                if m and 'CANCEL' in cat.upper(): lines.append(f'CANCEL NAVAREA II {int(m.group(1))}/{m.group(2)[-2:]}')
+                if m and 'CANCEL' in cat.upper() and int(m.group(1)) != int(num): lines.append(f'CANCEL NAVAREA II {int(m.group(1))}/{m.group(2)[-2:]}')
         t = '\n'.join(l for l in lines if l)
         if coords and not re.search(r'\d{1,2}-\d{2}(?:\.\d+)?\s*[NS]', t):   # positions only in the GML geometry
             t += '\n' + '\n'.join(f'{_dm(a, "N", "S", 2)} {_dm(b, "E", "W", 3)}' for a, b in coords)

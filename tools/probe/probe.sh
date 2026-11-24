@@ -5,3 +5,4 @@ spec=importlib.util.spec_from_file_location('f','tools/navwarn/fetch.py'); f=imp
 r,note=f.ping(); print(len(r),note)
 for m in r: print(json.dumps(m,ensure_ascii=False))
 "
+# 2

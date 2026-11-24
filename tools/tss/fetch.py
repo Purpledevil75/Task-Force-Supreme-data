@@ -64,13 +64,51 @@ def process(t):
         seen.add(fid); feats[fid] = f
     print('type', t, 'features', len(feats) - n0, 'total', len(feats), flush=True)
 
-for t in KEEP: process(t); time.sleep(5)
-for _ in range(2):
-    again = [t for t, k in KEEP.items() if k in failed]; failed[:] = []
-    if not again: break
-    print('retrying', again, flush=True); time.sleep(300)
-    for t in again: process(t); time.sleep(5)
-print('failed types left:', failed, flush=True)
+def from_geofabrik(path):
+    """Features extracted by geofabrik.py (osmium export, GeoJSON per line)."""
+    def r5(c): return [round(c[0], 5), round(c[1], 5)]
+    for line in open(path, encoding='utf-8'):
+        try: ft = json.loads(line)
+        except Exception: continue
+        pr, gm = ft.get('properties', {}), ft.get('geometry') or {}
+        k = KEEP.get(pr.get('seamark:type'))
+        if not k: continue
+        fid = (pr.get('@type') or 'x')[0] + str(pr.get('@id'))
+        f = {'id': fid, 'v': pr.get('@version', 0), 'ts': str(pr.get('@timestamp') or '')[:10], 'k': k}
+        nm = pr.get('seamark:name') or pr.get('name')
+        if nm: f['n'] = nm
+        for a2 in ('seamark:calling-in_point:channel', 'seamark:calling-in_point:callsign', 'seamark:separation_lane:orientation', 'seamark:recommended_track:orientation', 'seamark:calling-in_point:orientation'):
+            if a2 in pr: f[a2.split(':')[-1][:3]] = pr[a2]
+        t, c = gm.get('type'), gm.get('coordinates')
+        if not c: continue
+        if t == 'Point': f['g'] = r5(c)
+        elif t == 'LineString': f['g'] = [r5(p) for p in c]
+        elif t == 'Polygon' and fid[0] == 'w': f['g'] = [r5(p) for p in c[0]]
+        elif t == 'Polygon': f['m'] = [[r5(p) for p in ring] for ring in c]
+        elif t == 'MultiPolygon': f['m'] = [[r5(p) for p in ring] for poly in c for ring in poly]
+        elif t == 'MultiLineString': f['m'] = [[r5(p) for p in ln] for ln in c]
+        else: continue
+        size = lambda x: len(x.get('g') or []) + sum(len(r) for r in x.get('m', []))
+        o = feats.get(fid)          # border regions overlap: keep the most complete copy
+        if o is None or size(f) > size(o) or f['v'] > o['v']: feats[fid] = f
+
+GF = os.path.join(OUTD, 'geofabrik.geojsonseq')
+SOURCE = os.environ.get('TSS_SOURCE', 'geofabrik' if os.path.exists(GF) else 'overpass')
+failed_regions = []
+if SOURCE == 'geofabrik':
+    from_geofabrik(GF)
+    st = json.load(open(os.path.join(OUTD, 'geofabrik-status.json'))) if os.path.exists(os.path.join(OUTD, 'geofabrik-status.json')) else {}
+    failed_regions = st.get('failed', [])
+    if failed_regions: failed[:] = list(set(KEEP.values()))     # some regions missing: never report removals this run
+    print('geofabrik features', len(feats), 'failed regions', failed_regions, flush=True)
+else:
+    for t in KEEP: process(t); time.sleep(5)
+    for _ in range(2):
+        again = [t for t, k in KEEP.items() if k in failed]; failed[:] = []
+        if not again: break
+        print('retrying', again, flush=True); time.sleep(300)
+        for t in again: process(t); time.sleep(5)
+    print('failed types left:', failed, flush=True)
 
 def bbox_of(f):
     pts = [f['g']] if f.get('g') and not isinstance(f['g'][0], list) else (f.get('g') or [p for r in f.get('m', []) for p in r])
@@ -96,7 +134,7 @@ first_run = not old
 desc = lambda f, how: {'id': f['id'], 'k': f['k'], 'what': KRU.get(f['k'], f['k']), 'n': f.get('n', ''), 'bb': bbox_of(f), 'how': how, 'ts': f.get('ts', '')}
 entry = {'date': time.strftime('%Y-%m-%d'), 'total': len(feats), 'added': len(added), 'changed': len(changed), 'removed': len(removed), 'first': first_run,
          'items': ([] if first_run else [desc(f, 'new') for f in added] + [desc(f, 'changed') for f in changed] + [desc(f, 'removed') for f in removed])[:400],
-         'failedTypes': [KRU.get(k, k) for k in failed]}
+         'failedTypes': [] if SOURCE == 'geofabrik' else [KRU.get(k, k) for k in failed], 'failedRegions': failed_regions, 'source': SOURCE}
 log = load_json(os.path.join(APP, 'changes.json')) or []
 is_change = first_run or added or changed or removed
 if is_change: log = [entry] + log[:29]
@@ -113,5 +151,5 @@ if is_change or not prev:
     man['datasets']['tss'] = {'updated': data['updated'], 'count': len(feats), 'path': 'tss/tss.json', 'changes': 'tss/changes.json',
                               'sha256': hashlib.sha256(raw.encode('utf-8')).hexdigest(), 'license': 'ODbL-1.0'}
     json.dump(man, open(mp, 'w'), indent=1)
-json.dump({'changed': bool(is_change), 'total': len(feats), 'added': len(added), 'changed_n': len(changed), 'removed': len(removed), 'failed_types': failed}, open(os.path.join(OUTD, 'summary.json'), 'w'))
+json.dump({'changed': bool(is_change), 'total': len(feats), 'added': len(added), 'changed_n': len(changed), 'removed': len(removed), 'failed_types': failed, 'failed_regions': failed_regions, 'source': SOURCE}, open(os.path.join(OUTD, 'summary.json'), 'w'))
 print('features', len(feats), cnt, 'added', len(added), 'changed', len(changed), 'removed', len(removed))

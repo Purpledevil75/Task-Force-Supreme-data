@@ -293,9 +293,27 @@ def pnho():
     if not out: raise RuntimeError('no warnings parsed')
     return out, f'{len(out)} in list, {fetched} texts downloaded'
 
+def nha():
+    """NAVAREA II - Nigerian Hydrographic Agency's public in-force list (the coordinator, Shom, publishes no open feed)."""
+    h = get('https://nha.gov.ng/navarea-ii-warnings/')
+    i = h.find('Warnings In-force'); h = h[i:] if i >= 0 else h
+    out = []
+    for m in re.finditer(r'<h3 class="ea-header">(.*?)</h3>(.*?)(?=<div class="ea-card|<h4\b|\Z)', h, re.S):
+        ref = ' '.join(text_of(m.group(1)).split())
+        if not re.match(r'NAVAREA\s+II\s+\d+\s*/\s*\d+', ref): continue
+        lines = [l for l in text_of(m.group(2)).split('\n')]
+        while lines and not lines[0]: lines.pop(0)
+        if lines and ' '.join(lines[0].split()) == ref: lines.pop(0)
+        dtg = ''
+        if lines and re.match(r'^\d{6}\s*UTC\s+[A-Z]{3}\s+\d{2,4}$', lines[0]): dtg = lines.pop(0)
+        out.append(msg('II', 'navarea', ref, '\n'.join(lines), 'NHA Nigeria', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out
+
 SOURCES = [('UKHO', 'I + UK coastal', ukho), ('NGA', 'IV, XII, HYDROLANT/PAC/ARC', nga), ('AMSA', 'X + AUSCOAST', amsa),
            ('JCG', 'XI', jcg), ('Maritime NZ', 'XIV + NZ coastal', maritimenz), ('CCG', 'XVII, XVIII', ccg),
-           ('Kystverket', 'XIX', kystverket), ('IHM Spain', 'III', ihm), ('SHN Argentina', 'VI', shn), ('PN Hydrography', 'IX', pnho), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho)]
+           ('Kystverket', 'XIX', kystverket), ('IHM Spain', 'III', ihm), ('SHN Argentina', 'VI', shn), ('PN Hydrography', 'IX', pnho), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho),
+           ('NHA Nigeria', 'II', nha)]
 
 def main():
     only = set(sys.argv[1:])

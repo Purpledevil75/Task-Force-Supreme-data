@@ -1,0 +1,24 @@
+name: Update TSS data (OSM seamarks)
+on:
+  schedule:
+    - cron: '23 2 * * 1'     # every Monday 02:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  tss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python tools/tss/fetch.py 2>&1 | tee tools/tss/out/fetch.log || true
+      - name: Commit if the data changed
+        run: |
+          cat tools/tss/out/summary.json || exit 0
+          if python -c "import json,sys; sys.exit(0 if json.load(open('tools/tss/out/summary.json'))['changed'] else 1)"; then
+            git config user.name tss-bot; git config user.email ci@users.noreply.github.com
+            git add tss/tss.json tss/changes.json manifest.json
+            git commit -m "TSS data update $(date -u +%F)" && git pull --rebase -q && git push
+          else echo "no changes"; fi

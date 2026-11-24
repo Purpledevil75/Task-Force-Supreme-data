@@ -224,9 +224,41 @@ def nho():
     if not out: raise RuntimeError('no warnings parsed (%d chars of text)' % len(t))
     return out, note
 
+def shn():
+    """NAVAREA VI - Servicio de Hidrografia Naval (Argentina): English version of the in-force list."""
+    h = get('https://www.hidro.gob.ar/nautica/RadioavisosNauticos.asp?op=8', timeout=90)
+    i = h.find('id="desplegable"'); j = h.find('</pre>', i)
+    if i < 0 or j < 0: raise RuntimeError('page layout changed')
+    part = h[i:j]
+    upd = re.search(r'Updated on:\s*([\d/]+)', part)
+    out = []
+    for m in re.finditer(r'<H2>\s*NAVAREA\s*-\s*(\d+)-(\d{4})\s*-\s*(\d\d)/(\d\d)/(\d{4})\s*</H2>(.*?)(?=<H2>|$)', part, re.S | re.I):
+        num, yr, dd, mo, yy, body = m.groups()
+        dtg = f'{dd}0000 UTC ' + time.strftime('%b', time.strptime(mo, '%m')).upper() + ' ' + yy[2:]
+        out.append(msg('VI', 'navarea', f'NAVAREA VI {int(num)}/{yr[2:]}', clean(text_of(body)), 'SHN Argentina', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out, ('updated ' + upd.group(1)) if upd else ''
+
+def dhn():
+    """NAVAREA XVI - Direccion de Hidrografia y Navegacion (Peru): latest 'MESSAGE IN FORCE' bulletin with full texts."""
+    t = text_of(get('https://www.dhn.mil.pe/portal/navarea/radioavisos-warnings', timeout=90))
+    a = t.find('ZCZC'); b = t.find('NNNN', a)
+    if a < 0 or b < 0: raise RuntimeError('no bulletin found')
+    blk = t[a:b]
+    hd = re.search(r'DATE:\s*([A-Z]{3})\s+(\d{1,2})\s+(\d{4})\s+TIME\s+(\d{4})', blk)
+    dtg = f'{int(hd.group(2)):02d}{hd.group(4)} UTC {hd.group(1)} {hd.group(3)[2:]}' if hd else ''
+    parts = re.split(r'(?m)^\s*(NAVAREA XVI \d+/\d+)\s*$', blk)
+    out = []
+    for k in range(1, len(parts) - 1, 2):
+        out.append(msg('XVI', 'navarea', parts[k], parts[k + 1], 'DHN Peru'))
+    if hd:
+        out.append(msg('XVI', 'bulletin', 'NAVAREA XVI IN FORCE ' + dtg, clean(parts[0]), 'DHN Peru', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out
+
 SOURCES = [('UKHO', 'I + UK coastal', ukho), ('NGA', 'IV, XII, HYDROLANT/PAC/ARC', nga), ('AMSA', 'X + AUSCOAST', amsa),
            ('JCG', 'XI', jcg), ('Maritime NZ', 'XIV + NZ coastal', maritimenz), ('CCG', 'XVII, XVIII', ccg),
-           ('Kystverket', 'XIX', kystverket), ('NHO India', 'VIII', nho)]
+           ('Kystverket', 'XIX', kystverket), ('SHN Argentina', 'VI', shn), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho)]
 
 def main():
     only = set(sys.argv[1:])

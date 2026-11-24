@@ -367,10 +367,28 @@ def ping():
     if not out: raise RuntimeError('no warnings parsed')
     return out, 'S-124 API'
 
+def sanho():
+    """NAVAREA VII - South African Navy Hydrographic Office, in-force list page (HTML, updated on working days)."""
+    t = text_of(get('https://www.sanho.co.za/notices_mariners/navarea_v11_messages.htm')).replace('\u2013', '-').replace('\u2014', '-')
+    i = t.find('NAVAREA VII MESSAGES'); t = t[i:] if i >= 0 else t
+    t = re.split(r'\n\s*\u00a9|\n\s*(?:\(c\)|copyright)\s', t, flags=re.I)[0]
+    hdr = re.compile(r'NAVAREA\s+VII\s+(\d{1,4})\s+OF\s*\n?\s*(\d{4})\s*:?\s*(?:\(\s*(\d{1,2}\s+[A-Z]{3}\s+\d{2,4})\s*\))?', re.I)
+    hs = list(hdr.finditer(t)); out = []
+    for k, m in enumerate(hs):
+        body = t[m.end():hs[k + 1].start() if k + 1 < len(hs) else len(t)]
+        lines = [l for l in body.split('\n')]
+        txt = '\n'.join(lines).strip()
+        txt = re.sub(r'\n(?!\s*(?:\d{1,2}\.|[A-Z]\.\s))', ' ', txt)       # re-join wrapped lines; keep numbered/lettered items
+        txt = '\n'.join(' '.join(l.split()) for l in txt.split('\n'))
+        dtg = ' '.join((m.group(3) or '').split())
+        out.append(msg('VII', 'navarea', f'NAVAREA VII {int(m.group(1)):03d}/{m.group(2)[-2:]}', txt, 'SANHO', dtg))
+    if not out: raise RuntimeError('no warnings parsed')
+    return out
+
 SOURCES = [('UKHO', 'I + UK coastal', ukho), ('NGA', 'IV, XII, HYDROLANT/PAC/ARC', nga), ('AMSA', 'X + AUSCOAST', amsa),
            ('JCG', 'XI', jcg), ('Maritime NZ', 'XIV + NZ coastal', maritimenz), ('CCG', 'XVII, XVIII', ccg),
            ('Kystverket', 'XIX', kystverket), ('IHM Spain', 'III', ihm), ('SHN Argentina', 'VI', shn), ('PN Hydrography', 'IX', pnho), ('DHN Peru', 'XVI', dhn), ('NHO India', 'VIII', nho),
-           ('Shom PING', 'II', ping)]
+           ('Shom PING', 'II', ping), ('SANHO', 'VII', sanho)]
 
 def main():
     only = set(sys.argv[1:])

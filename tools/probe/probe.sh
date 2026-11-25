@@ -1,14 +1,12 @@
 #!/bin/bash
-# New compact waterway dump on a few regions -> sample v2 (for the app's approach builder)
+# mirror the public inputs of the routing-network build (OSM land polygons, Natural Earth lakes, World Bank ship density)
 set -e
-sudo apt-get install -y -q osmium-tool >/dev/null; pip install -q osmium numpy
-mkdir -p /tmp/w tools/approach/sample2; cd /tmp/w
-for r in europe/belgium europe/france/haute-normandie europe/netherlands/zeeland; do
-  n=$(basename $r); curl -sL -o $n.pbf https://download.geofabrik.de/$r-latest.osm.pbf
-  osmium tags-filter --overwrite -o $n.f.pbf $n.pbf w/waterway=river,canal,fairway,tidal_channel w/seamark:type=fairway,recommended_track,navigation_line
-  python3 $GITHUB_WORKSPACE/tools/approach/dump.py $n.f.pbf $GITHUB_WORKSPACE/tools/approach/sample2/$n.jsonl $GITHUB_WORKSPACE/tools/approach/ports.json
-done
-cd $GITHUB_WORKSPACE; gzip -9f tools/approach/sample2/*.jsonl; ls -la tools/approach/sample2
-git config user.name probe-bot; git config user.email ci@users.noreply.github.com
-git add tools/approach/sample2; git commit -qm "approach: compact waterway samples (OSM, ODbL)"; git pull -q --rebase; git push -q
-# 3
+mkdir -p /tmp/netin && cd /tmp/netin
+curl -fsSL --retry 3 -o simplified.zip https://osmdata.openstreetmap.de/download/simplified-land-polygons-complete-3857.zip
+curl -fsSL --retry 3 -o ne_10m_lakes.zip https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip
+curl -fsSL --retry 3 -m 3000 -o density.zip https://datacatalogfiles.worldbank.org/ddh-published/0037580/DR0045406/shipdensity_global.zip
+ls -la
+cd "$GITHUB_WORKSPACE"
+gh release view netin >/dev/null 2>&1 || gh release create netin --title "Routing network inputs" --notes "Mirror of public inputs: OSM simplified land polygons (ODbL, (c) OpenStreetMap contributors), Natural Earth lakes (public domain), World Bank Global Shipping Traffic Density (CC BY 4.0)." --latest=false
+gh release upload netin /tmp/netin/simplified.zip /tmp/netin/ne_10m_lakes.zip /tmp/netin/density.zip --clobber
+echo uploaded

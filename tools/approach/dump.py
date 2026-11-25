@@ -12,12 +12,13 @@ def port_cells(ports_js, strong_deg=4.0, weak_deg=0.5, cell=0.5):
     """0.5-degree cells near candidate ports (straight approach over land or long): navigable waterways within strong_deg,
     untagged small rivers only within weak_deg."""
     import math
-    txt = open(ports_js, encoding='utf-8').read(); d = json.loads(txt[txt.index('=') + 1:txt.rindex(';')])
-    f = {k: i for i, k in enumerate(d['fields'])}
+    txt = open(ports_js, encoding='utf-8').read()
+    if ports_js.endswith('.json'): pts = json.loads(txt)['p']          # [[lon,lat],...] candidate ports
+    else:
+        d = json.loads(txt[txt.index('=') + 1:txt.rindex(';')]); f = {k: i for i, k in enumerate(d['fields'])}
+        pts = [(r[f['lon']], r[f['lat']]) for r in d['rows'] if r[f['snapLand']] == 1 or (r[f['snapNM']] or 0) > 3]
     strong, weak = set(), set()
-    for r in d['rows']:
-        if not (r[f['snapLand']] == 1 or (r[f['snapNM']] or 0) > 3): continue
-        lon, lat = r[f['lon']], r[f['lat']]
+    for lon, lat in pts:
         for S, deg in ((strong, strong_deg), (weak, weak_deg)):
             dl = deg / max(0.2, math.cos(math.radians(lat)))
             for x in range(math.floor((lon - dl) / cell), math.floor((lon + dl) / cell) + 1):

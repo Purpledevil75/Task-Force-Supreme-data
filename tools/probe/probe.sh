@@ -1,12 +1,13 @@
 #!/bin/bash
-# mirror the public inputs of the routing-network build (OSM land polygons, Natural Earth lakes, World Bank ship density)
+# pre-rasterise the public routing-network inputs (land 0.02 deg incl. big lakes opened, ship density on the 0.1 deg grid)
 set -e
+pip install -q numpy rasterio pyshp
 mkdir -p /tmp/netin && cd /tmp/netin
-curl -fsSL --retry 3 -o simplified.zip https://osmdata.openstreetmap.de/download/simplified-land-polygons-complete-3857.zip
-curl -fsSL --retry 3 -o ne_10m_lakes.zip https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip
-curl -fsSL --retry 3 -m 3000 -o density.zip https://datacatalogfiles.worldbank.org/ddh-published/0037580/DR0045406/shipdensity_global.zip
-ls -la
+for n in simplified.zip ne_10m_lakes.zip density.zip; do gh release download netin -R "$GITHUB_REPOSITORY" -p $n --clobber; done
+unzip -o -q simplified.zip; mkdir -p lakes && unzip -o -q ne_10m_lakes.zip -d lakes; unzip -o -q density.zip
+SHP=$(find . -name 'simplified_land_polygons.shp' | head -1); LK=$(find lakes -name '*.shp' | head -1); TIF=$(find . -iname '*.tif' | head -1)
+python3 "$GITHUB_WORKSPACE/tools/probe/raster.py" "$SHP" "$LK" "$TIF"
+ls -la *.npz
 cd "$GITHUB_WORKSPACE"
-gh release view netin >/dev/null 2>&1 || gh release create netin --title "Routing network inputs" --notes "Mirror of public inputs: OSM simplified land polygons (ODbL, (c) OpenStreetMap contributors), Natural Earth lakes (public domain), World Bank Global Shipping Traffic Density (CC BY 4.0)." --latest=false
-gh release upload netin /tmp/netin/simplified.zip /tmp/netin/ne_10m_lakes.zip /tmp/netin/density.zip --clobber
+gh release upload netin /tmp/netin/land.npz /tmp/netin/density.npz --clobber
 echo uploaded

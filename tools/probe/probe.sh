@@ -11,3 +11,4 @@ done
 cd $GITHUB_WORKSPACE; gzip -9f tools/approach/sample/*.jsonl; ls -la tools/approach/sample
 git config user.name probe-bot; git config user.email ci@users.noreply.github.com
 git add tools/approach/sample; git commit -qm "approach prototype: waterway samples (OSM, ODbL)"; git pull -q --rebase; git push -q
+# 2

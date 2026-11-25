@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
   push:
     paths: ['tools/probe/**']
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest

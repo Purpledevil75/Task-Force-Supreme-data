@@ -86,11 +86,15 @@ if __name__ == '__main__':
     src, dst, ports = sys.argv[1], sys.argv[2], sys.argv[3]
     cells = port_cells(ports)
     print('cells near ports: strong', len(cells[0]), 'weak', len(cells[1]), file=sys.stderr, flush=True)
-    idx = 'sparse_file_array,/tmp/nodes.idx'
-    p1 = Pass(cells); p1.apply_file(src, locations=True, idx=idx)
+    import os
+    def idx(n):          # a fresh node-location index file per pass (re-using one appends to it and breaks look-ups)
+        f = '/tmp/nodes%d.idx' % n
+        if os.path.exists(f): os.remove(f)
+        return 'sparse_file_array,' + f
+    p1 = Pass(cells); p1.apply_file(src, locations=True, idx=idx(1)); os.remove('/tmp/nodes1.idx')
     refs = np.frombuffer(p1.refs, dtype=np.int64)
     u, cnt = np.unique(refs, return_counts=True); shared = u[cnt > 1]; del refs, u, cnt; p1.refs = None
     print('pass 1: shared nodes', len(shared), file=sys.stderr, flush=True)
     with open(dst, 'w') as f:
-        p2 = Pass(cells, f, shared); p2.apply_file(src, locations=True, idx=idx)
+        p2 = Pass(cells, f, shared); p2.apply_file(src, locations=True, idx=idx(2)); os.remove('/tmp/nodes2.idx')
     print('ways', p2.n, file=sys.stderr)

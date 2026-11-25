@@ -37,7 +37,7 @@ jobs:
           osmium tags-filter --overwrite -o ways.pbf planet.osm.pbf w/waterway=river,canal,fairway,tidal_channel w/seamark:type=fairway,recommended_track,navigation_line
           rm -f planet.osm.pbf; ls -la; echo "filtered in $(( $(date +%s) - t0 )) s"; df -h / | tail -1
           python $GITHUB_WORKSPACE/tools/approach/dump.py ways.pbf waterways.jsonl $GITHUB_WORKSPACE/tools/approach/ports.json
-          rm -f ways.pbf /tmp/nodes.idx; gzip -6 waterways.jsonl; ls -la; echo "done in $(( $(date +%s) - t0 )) s"
+          rm -f ways.pbf; gzip -6 waterways.jsonl; ls -la; echo "done in $(( $(date +%s) - t0 )) s"
       - name: Publish (release asset)
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |

@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
           sudo apt-get update -q && sudo apt-get install -y -q osmium-tool aria2
-          pip install -q osmium
+          pip install -q osmium numpy
           df -h / | tail -1
       - name: Planet file (AWS Open Data mirror)
         run: |

@@ -20,5 +20,9 @@ for ds in sys.argv[1:]:
         man['datasets']['tz'] = {'updated': d['updated'], 'version': d['version'], 'count': len(d['z']), 'path': 'tz/tz.json', 'changes': 'tz/changes.json',
                                  'corrections': 'tz/corrections.json', 'corrections_sha256': hashlib.sha256(craw.encode('utf-8')).hexdigest(),
                                  'sha256': hashlib.sha256(raw.encode('utf-8')).hexdigest(), 'license': 'public domain (IANA tz database)'}
+    elif ds == 'approach':
+        raw = open(os.path.join(ROOT, 'approach', 'approach.json'), encoding='utf-8').read(); d = json.loads(raw)
+        man['datasets']['approach'] = {'updated': d['built'], 'count': len(d['approaches']), 'path': 'approach/approach.json',
+                                       'sha256': hashlib.sha256(raw.encode('utf-8')).hexdigest(), 'license': 'ODbL-1.0'}
 json.dump(man, open(mp, 'w'), indent=1)
 print('manifest:', {k: v.get('updated') for k, v in man['datasets'].items()})

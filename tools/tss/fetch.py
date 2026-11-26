@@ -6,7 +6,7 @@ via the Overpass API (one global query per seamark:type value), compare with the
   manifest.json        - dataset versions for the app's update check
   tools/tss/out/summary.json - for CI (changed: true/false)
 (c) OpenStreetMap contributors, ODbL 1.0. Not for navigation: OSM coverage of routeing measures is incomplete."""
-import hashlib, json, os, time, urllib.parse, urllib.request
+import sys, hashlib, json, os, time, urllib.parse, urllib.request
 H = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(H, '..', '..', 'tss'); os.makedirs(APP, exist_ok=True)
 OUTD = os.path.join(H, 'out'); os.makedirs(OUTD, exist_ok=True)
@@ -117,6 +117,9 @@ def bbox_of(f):
 def ghash(f): return hashlib.md5(json.dumps([f.get('g'), f.get('m'), f.get('n'), f.get('cha'), f.get('ori')], sort_keys=True).encode()).hexdigest()[:10]
 
 # ---- compare with the previous data set ----
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import merge_manual   # official schemes missing from OSM (tss/manual/*.json, ids m-...)
+for _f in merge_manual.manual_features(): feats[_f['id']] = _f
 def load_json(path):
     return json.load(open(path, encoding='utf-8')) if os.path.exists(path) else None
 prev = load_json(os.path.join(APP, 'tss.json'))

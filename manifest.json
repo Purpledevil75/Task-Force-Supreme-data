@@ -10,10 +10,10 @@
   },
   "tss": {
    "updated": "2026-11-24",
-   "count": 24942,
+   "count": 24947,
    "path": "tss/tss.json",
    "changes": "tss/changes.json",
-   "sha256": "710318e914b7b93ffb5407cb1d0fe881c109355ff7a8f3d51f2c52a1f4dfcbb7",
+   "sha256": "f2b18a40462c31496207b3c6e2e8996519ee01394dddc605d0fdbc359475e0fa",
    "license": "ODbL-1.0"
   },
   "tz": {
